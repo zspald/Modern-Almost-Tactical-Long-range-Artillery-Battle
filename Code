@@ -1,0 +1,1386 @@
+classdef start < matlab.apps.AppBase
+    
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure          matlab.ui.Figure
+        WINDGaugeLabel    matlab.ui.control.Label
+        WINDGauge         matlab.ui.control.SemicircularGauge
+        FIREButton        matlab.ui.control.Button
+        POWERSliderLabel  matlab.ui.control.Label
+        POWERSlider       matlab.ui.control.Slider
+        ANGLESliderLabel  matlab.ui.control.Label
+        ANGLESlider       matlab.ui.control.Slider
+        UIAxes            matlab.ui.control.UIAxes
+        Image             matlab.ui.control.Image
+        Image_2           matlab.ui.control.Image
+        Image2            matlab.ui.control.Image
+        MesaButton        matlab.ui.control.Button
+        IcebergButton     matlab.ui.control.Button
+        ParthenonButton   matlab.ui.control.Button
+        FIREButton_2      matlab.ui.control.Button
+        FIREButton_3      matlab.ui.control.Button
+    end
+    
+    
+    properties (Access = public)
+        %properties for the GUI to use in functions below. Essentially a
+        %place where all global variables needed are defined and can be
+        %accessed and updated from below. Global variables used are initialized
+        %with their name and a suppression here, and can be called upon or
+        %interacted with by the syntax app."variable name" in functions
+        %below. All variables used will be explained further in depth in
+        %later parts of the GUI code.
+        
+        %initialization of array containing wind values and random integer
+        %used to index c_range to select an initial wind value
+        c_range=linspace(-0.003,0.003,50);
+        c_rand=randi(50);
+        
+        %initialization of ally tank initial position variables and I,
+        %variable used for the image background for a map
+        x0;
+        y0;
+        I;
+        
+        %initialization of enemy initial positon, enemy velocity range, and
+        %enemy theta range variables
+        x0_enemy;
+        y0_enemy;
+        v_range_enemy;
+        theta_range_enemy;
+        
+        %initialization of image data variables for titanic image load in
+        titanic;
+        a_titanic;
+        x_titanic;
+        y_titanic;
+        
+        %initialization of image data variables for cactus image load in
+        cactus;
+        a_cactus;
+        x_cactus;
+        y_cactus;
+        
+        %initialization of image data variables for trojan horse image load in
+        trojan;
+        a_trojan;
+        x_trojan;
+        y_trojan;
+        
+        %initialization of image data variables for explosion image load in
+        explosion;
+        a_explosion;
+        x_explosion;
+        y_explosion;
+        
+        %initialization of image data variables for ally tank image load in
+        allytank;
+        a_allytank;
+        x_allytank;
+        y_allytank;
+        
+        %initialization of image data variables for enemy tank image load in
+        enemytank;
+        a_enemytank;
+        x_enemytank;
+        y_enemytank;
+        
+        %initialization of image data variables for full ally health image load in
+        fullallyhealth;
+        a_fullallyhealth;
+        x_fullallyhealth;
+        y_fullallyhealth;
+        
+        %initialization of image data variables for 2/3 ally health image load in
+        twoallyhealth;
+        a_twoallyhealth;
+        x_twoallyhealth;
+        y_twoallyhealth;
+        
+        %initialization of image data variables for 1/3 ally health image load in
+        oneallyhealth;
+        a_oneallyhealth;
+        x_oneallyhealth;
+        y_oneallyhealth;
+        
+        %initialization of image data variables for full enemy health image load in
+        fullenemyhealth;
+        a_fullenemyhealth;
+        x_fullenemyhealth;
+        y_fullenemyhealth;
+        
+        %initialization of image data variables for 2/3 enemy health image load in
+        twoenemyhealth;
+        a_twoenemyhealth;
+        x_twoenemyhealth;
+        y_twoenemyhealth;
+        
+        %initialization of image data variables for 1/3 enemy health image load in
+        oneenemyhealth;
+        a_oneenemyhealth;
+        x_oneenemyhealth;
+        y_oneenemyhealth;
+        
+        %initialization of image data variables for empty ally health image load in
+        deadhealth_ally;
+        a_deadhealth_ally;
+        x_deadhealth_ally;
+        y_deadhealth_ally;
+        
+        %initialization of image data variables for empty enemy health image load in
+        deadhealth_enemy;
+        a_deadhealth_enemy;
+        x_deadhealth_enemy;
+        y_deadhealth_enemy;
+        
+        %initialization of hit condition variables for ally health bar
+        no_hit_ally;
+        one_hit_ally;
+        two_hit_ally;
+        
+        %initialization of hit condition variables for enemy health bar
+        no_hit_enemy;
+        one_hit_enemy;
+        two_hit_enemy;
+        
+        %initialization of hit condition variables controlling the playing of the damage sound effect
+        hit_sound=0;
+        hit_sound_enemy=0;
+        
+        %initialization of audio data variables for the tank fire sound
+        Tank_Fire;
+        Fs_Tank_Fire;
+        Tank_Fire_Sound;
+        
+        %initialization of audio data variables for the projectile explosion sound
+        Tank_Hit;
+        Fs_Tank_Hit;
+        Tank_Hit_Sound;
+        
+        %initialization of audio data variables for the damage sound
+        Damage;
+        Fs_Damage;
+        Damage_Sound;
+        
+        %initialization of audio data variables for the win sound
+        Win;
+        Fs_Win;
+        Win_Sound;
+        
+        %initialization of audio data variables for the lose sound
+        Lose;
+        Fs_Lose;
+        Lose_Sound;
+        
+        %initialization variables for final projectile position
+        xf;
+        yf;
+        
+        %initialization of variables for ally and enemy hit counters
+        hit=0;
+        hit_enemy=0;
+    end
+    
+    methods (Access = public)
+        
+        function [xf, yf] = collision(app,v0,theta,enemy_position, aData, x_corner, y_corner)
+            %Collision function takes in the position of the tank and the player set
+            %power (velocity) and theta value, fire the ammunition of choice and see if
+            %the shot was a hit. Theta is between 0 and 90
+            %x0 and y0 correspond to initial position
+            %v0 is the initial velocity
+            %theta is the angle the shot is fired
+            %enemy_position is a vector that holds the x range of the enemy's position.
+            %If the shot lands within this range, it will be considered a hit
+            %aData is the transparency data of the barrier between tanks
+            %x_corner is a matrix that contains the x bounds of the barrier image
+            %The y_corner is a matrix that contains the y bounds of the barrier image
+            %All x and y bounds and ranges are greater than 0
+            
+            
+            %set initial conditions for fire
+            IC=[app.x0 app.y0 v0*cos(theta) v0*sin(theta)];
+            
+            %initialize path as an empty array
+            path=[;];
+            
+            %use ode45 to solve projectile motion equation. stores time data in array t
+            %and x position, y position, x velocity, and y velocity in array y for each
+            %time point. Also uses a random wind constant
+            [~, y]=ode45(@odefcn,0:0.004:8, IC, [], app.c_range(app.c_rand));
+            
+            %Initilize counter i as one to be used for indexing in the
+            %array path
+            i=1;
+            %Initialize aData_coloumns and aData_rows as variables that
+            %will hold the various dimensions of the alpha data to be used
+            %when checking conditions
+            aData_columns = length(aData(1,:));
+            aData_rows = length(aData(:,1));
+            
+            %The following while loops check various conditions to see what
+            %parts of the projectile's motion will be plotted. The while
+            %loops have been place in such an order that the projectile can
+            %"enter" the rectagular barrier image and leave or never enter
+            %the barrier image, etc. Essentially no matter what path the
+            %arc takes, the while loops will successfully allow the
+            %projectile to move, only stopping on the barrier image, the
+            %walls or the ground.
+            
+            %Only adds to the path array if the projectile is above the
+            %ground, and in to the left of the start of the image as well
+            %as the right wall
+            while y(i,2)>=0 && ceil(y(i,1))<=x_corner(1) && ceil(y(i,1))<=150
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %This conditions checks to see if the shot is above the barrier
+            %image and is to the right of the start of the image
+            while y(i,2)>=0 && ceil(y(i,1))>=x_corner(1) && ceil(y(i,2))>= y_corner(2) && ceil(y(i,1))<=150
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %This condition specifically relates to being in the barrier
+            %image and seeing if the projectile hits the non transparent
+            %regions
+            %The condition specifically uses the location of the actual
+            %image on the plot to make sure the proper indicies of the
+            %alpha data are checked. The alpha data is either 0 for
+            %transparent or non-zero for solid or semi transparent images
+            %so if the shot "hits" the solid image, this loop will end.
+            while y(i,2)>=0 && ceil(y(i,1)-x_corner(1))<=aData_columns && ceil(y(i,2))<= aData_rows && aData(ceil(y(i,2)),ceil(y(i,1)-x_corner(1))) == 0
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %Same as the second while loop where the projectile is the the
+            %right of the start of the barrier image and is also above it
+            while y(i,2)>=0 && ceil(y(i,1))>=x_corner(1) && ceil(y(i,2))>= y_corner(2) && ceil(y(i,1))<=150
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %Same as the third while loop when the projectile is within the
+            %barrier image
+            while y(i,2)>=0 && ceil(y(i,1)-x_corner(1))<=aData_columns && ceil(y(i,2))<= aData_rows && aData(ceil(y(i,2)),ceil(y(i,1)-x_corner(1))) == 0
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %This while loop check for the condition that the projectile is
+            %past the barrier image (to the right) and is also below the
+            %top of the barrier image. This loop will end at the wall or
+            %the ground
+            while y(i,2)>=0 && ceil(y(i,1))>aData_columns+x_corner(1) && ceil(y(i,1))<=150
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %initializes x and y as "not a number"
+            x=NaN;
+            y=NaN;
+            
+            %turns on hold
+            hold(app.UIAxes,"on")
+            
+            %assigns pHandle as the plot of an arrow at position x and y, which
+            %signifies the dart
+            pHandle=plot(app.UIAxes,x,y,'.','Color','black','MarkerSize',10);
+            
+            %Plays the a sound that represents the firing of the
+            %projectile. There is a pause to make the sound line up more
+            %accurately with the actual plot of the projectile
+            play(app.Tank_Fire_Sound)
+            pause(0.5)
+            
+            %for every coupled x and y position stored in path (i.e. every time point
+            %recorded until the dart hits the wall)
+            for j=1:8:length(path)
+                %set x to be the x position of the dart and y to be the y position of
+                %the projectile at the corresponding time step
+                x=path(j,1);
+                y=path(j,2);
+                
+                %update the x position and y position of pHandle, which updates the
+                %plot of the projectile
+                pHandle.XData=x;
+                pHandle.YData=y;
+                drawnow
+            end
+            
+            %Checks to see if the final x position of the shot is within
+            %the bounds of the enemy vehicle and if so, adds on a value to
+            %app.hit to then take down the health of the enemy in another
+            %function
+            if x >= enemy_position(1) && x <= enemy_position(2)
+                app.hit = app.hit+1;
+            end
+            
+            %Sets the final x and y values to be outputed and used in other
+            %functions
+            xf = x;
+            yf = y;
+            %function that ode45 solves
+            function dxdydt=odefcn(~,Y,wind)
+                dxdydt=zeros(4,1);
+                dxdydt(1)=Y(3);
+                dxdydt(2)=Y(4);
+                dxdydt(3)=-wind*Y(3)*sqrt(Y(3)^2+Y(4)^2);
+                dxdydt(4)=-32.2;
+            end
+        end
+        
+        function [xf, yf] = collision_enemy(app,v0,theta,ally_position, aData, x_corner, y_corner)
+            %This function is nearly identical to the collision function
+            %above but is reversed for the usage of the enemy to fire from
+            %right to left. In addition, the function uses a set range of
+            %for the power and angle which is varied.
+            
+            %Comments below will show any difference from the previous
+            %function
+            
+            %set initial conditions for fire with the x direction of the
+            %shot being opposite of that for the friendly collision
+            %function
+            IC=[app.x0_enemy app.y0_enemy -v0*cos(theta) v0*sin(theta)];
+            
+            path=[;];
+            
+            
+            [~, y]=ode45(@odefcn,0:0.004:8, IC, [], app.c_range(app.c_rand));
+            
+            
+            i=1;
+            aData_columns = length(aData(1,:));
+            aData_rows = length(aData(:,1));
+            
+            %Now checks to see if the projectile is to the right if the
+            %barrier image and is to the right of the wall on the left
+            while y(i,2)>=0 && ceil(y(i,1))>=x_corner(2) && y(i,1)>=0
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %Only added on the condition that the projectile is to the
+            %right of the left wall
+            while y(i,2)>=0 && ceil(y(i,1)-x_corner(1))<=aData_columns && ceil(y(i,2))<= aData_rows && aData(ceil(y(i,2)),ceil(y(i,1))-x_corner(1)) == 0 && y(i,1)>=0
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %Checks to make sure that the projectile is to the left of the
+            %right most x bound of the barrier image and is above the image
+            %itself. This also include the condition of being to the right
+            %of the left wall
+            while y(i,2)>=0 && ceil(y(i,1))<=x_corner(2) && ceil(y(i,2))>= y_corner(2) && y(i,1)>=0
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %Same as the second while loop for being within the barrier
+            %image
+            while y(i,2)>=0 && ceil(y(i,1))-x_corner(1)>0 && ceil(y(i,1))-x_corner(1)<=aData_columns && ceil(y(i,2))<= aData_rows && aData(ceil(y(i,2)),ceil(y(i,1))-x_corner(1)) == 0 && y(i,1)>=0
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            %Checks to see that the projectile is past the left x bound of
+            %the barrier image, is below the top y bound of the image and
+            %is to the right of the left wall
+            while y(i,2)>=0 && ceil(y(i,1))<=x_corner(1) && y(i,1)>=0
+                path(i,1)=y(i,1);
+                path(i,2)=y(i,2);
+                i=i+1;
+            end
+            
+            x=NaN;
+            y=NaN;
+            
+            hold(app.UIAxes,"on")
+            
+            %This projectile is colored differently from the allied collision
+            %projectile
+            pHandle=plot(app.UIAxes,y,'.','Color','black',"MarkerSize",10,"MarkerEdgeColor","red");
+            
+            play(app.Tank_Fire_Sound)
+            pause(0.5)
+            
+            
+            for j=1:8:length(path)
+                x=path(j,1);
+                y=path(j,2);
+                
+                pHandle.XData=x;
+                pHandle.YData=y;
+                drawnow
+            end
+            
+            %This checks to see if the final x value is within the allied
+            %bounds and if so adds on a value to app.hit_enemy to then
+            %reduce health of the player
+            if x >= ally_position(1) && x <= ally_position(2)
+                app.hit_enemy = app.hit_enemy+1;
+            end
+            
+            xf = x;
+            yf = y;
+            function dxdydt=odefcn(~,Y,wind)
+                dxdydt=zeros(4,1);
+                dxdydt(1)=Y(3);
+                dxdydt(2)=Y(4);
+                dxdydt(3)=wind*Y(3)*sqrt(Y(3)^2+Y(4)^2);
+                dxdydt(4)=-32.2;
+            end
+        end
+        
+        function boom(app,xf,yf)
+            %This function takes in the final x and y position of the
+            %projectile and then depicts an image to show the
+            %explosion of the particle
+            
+            %Reads in the explosion image
+            [app.explosion,~,app.a_explosion] = imread('explosion.png');
+            
+            %Ontains the lengths of the various sides of the image
+            a_explosion_columns = length(app.a_explosion(1,:));
+            a_explosion_rows = length(app.a_explosion(:,1));
+            
+            %Sets the proper size of the image based on the location of
+            %where the final x and y position are
+            app.x_explosion = [xf-(a_explosion_columns/2) xf];
+            app.y_explosion = [yf-(a_explosion_rows/2) yf];
+            
+            %This for loop will play 5 iterations of the image
+            for i = 1:5
+                %Randomly assigns values to these change variables to
+                %randomize the location of the explosion effect
+                change_x = randi(5);
+                change_y = randi(5);
+                
+                %Turns hold on and off to add in images and remove them
+                hold(app.UIAxes,"on")
+                %Displays the explosion at a random location around the
+                %final position and then deletes it after a short delay
+                h = image(app.UIAxes, app.explosion, "AlphaData", app.a_explosion, "XData", app.x_explosion+change_x, "YData", app.y_explosion+change_y);
+                pause(.3);
+                delete(h);
+                hold(app.UIAxes, "off")
+            end
+            
+        end
+        
+    end
+    
+    
+    % Callbacks that handle component events
+    methods (Access = private)
+        
+        % Code that executes after component creation
+        function startupFcn(app)
+            %code to run when the GUI is started up
+            
+            %turns on hold so that images below will be plotted on the same
+            %figure UIAxes
+            hold(app.UIAxes,"on")
+            
+            %loading in of all the sounds used in the game. For each image
+            %the sampled sound data and rate of the sound data is saved
+            %using audio read. The audio sample is then saved to a global
+            %variable that will be called later with the firing functions
+            %using audio player.
+            
+            %sound for tank firing
+            [app.Tank_Fire,app.Fs_Tank_Fire] = audioread('Tank Fire.mp3');
+            app.Tank_Fire_Sound = audioplayer(app.Tank_Fire, app.Fs_Tank_Fire);
+            
+            %sound for the hit of the tank projectile (i.e. projectile
+            %explosion)
+            [app.Tank_Hit,app.Fs_Tank_Hit] = audioread('Tank Hit.mp3');
+            app.Tank_Hit_Sound = audioplayer(app.Tank_Hit, app.Fs_Tank_Hit);
+            
+            %sound for when a tank takes damage
+            [app.Damage,app.Fs_Damage] = audioread('Damage.mp3');
+            app.Damage_Sound = audioplayer(app.Damage, app.Fs_Damage);
+            
+            %sound for transition to win screen
+            [app.Win,app.Fs_Win] = audioread('You Win.mp3');
+            app.Win_Sound = audioplayer(app.Win, app.Fs_Win);
+            
+            %sound for transition to lose screen
+            [app.Lose,app.Fs_Lose] = audioread('You Lose.mp3');
+            app.Lose_Sound = audioplayer(app.Lose, app.Fs_Lose);
+            
+            
+            %sets the  y-axis on figure UIAxes to be in the normal direction (0 at the
+            %bottom, max at the top) to avoid errors with the y-axis being
+            %flipped when flipping an image
+            set(app.UIAxes,"YDir","normal")
+            
+            %turns off axis on figure UIAxes
+            axis(app.UIAxes,"off")
+            
+            %sends the wind data defined in properties to the wind gauge so
+            %that the wind gauge properly displays the first selected wind
+            %value (the negative sign makes it so that the direction the
+            %wind is displayed on the gauge matches the direction that the
+            %wind would push the projectile)
+            app.WINDGauge.Value=-1*((app.c_range(app.c_rand))/0.003)*10;
+        end
+        
+        % Button pushed function: FIREButton
+        function FIREButtonPushed(app, event)
+            %code to run when FIREButton is pushed (there are 3 fire
+            %buttons, this one corresponds to the fire button for the Mesa
+            %map.
+            
+            %if the enemy hit counter is less than 3 (i.e. the enemy has
+            %not hit you 3 times), the following code is run. This prevents
+            %the user from firing if their tank has been destroyed by the
+            %enemy
+            if app.hit_enemy<3
+                %runs the collision function with the velocity and angle
+                %values from the slider, the position of the enemy for this
+                %map, and the alpha data of the cactus obstacle. The final
+                %x and y position of the hit is returned from the function.
+                [app.xf, app.yf] = collision(app,app.POWERSlider.Value,app.ANGLESlider.Value*(pi/180), [135.8 145.35],app.a_cactus,app.x_cactus,app.y_cactus);
+                
+                %plays the explosion sound once the projectile has finished
+                %its trajectory. The pause is used to align the sound with
+                %the explosion visuals
+                play(app.Tank_Hit_Sound)
+                pause(0.3)
+                
+                %calls the boom function (explosion visuals) at the
+                %returned x and y position from the collision function.
+                boom(app,app.xf,app.yf)
+                
+                %conditions for if the enemy is hit. if the enemy is hit,
+                %app.hit increases by 1. app.hit_sound starts as 0, as
+                %defined in the properties.
+                
+                %if the enemy is hit for the first time (app.hit increases
+                %to 1) and app.hit_sound is 0 (initial state of the
+                %variable), the damage sound is played, the full health bar of the enemy is deleted
+                %(revealing the two-thids health under it), and app.hit_sound increases to 1 so that this
+                %condition will not run again for everytime the projectile
+                %lands.
+                if app.hit==1 && app.hit_sound==0
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.no_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound=1;
+                    
+                    %same as the condition above, but for the second hit on the
+                    %enemy. The damage sound is played and the two-thirds
+                    %health bar is removed to reveal the one-third health bar.
+                    %app.hit_sound is updated again to prevent repetition of
+                    %the damage sound.
+                elseif app.hit==2 && app.hit_sound==1
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.one_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound=2;
+                    
+                    %same as above, but for the third hit on the enemy tank.
+                    %The one-third health bar is deleted to show the empty,
+                    %gray health bar. Since the enemy has no health left (the
+                    %goal of the game is to hit the enemy 3 times), the win
+                    %screen is made visible and the win sound effect is played.
+                elseif app.hit==3 && app.hit_sound==2
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.two_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.Image.Visible="on";
+                    play(app.Win_Sound)
+                end
+            end
+            
+            %similar to the firing of the player above, so only differences from the firing above will be pointed out:
+            %if the player has not hit the enemy 3 times, then the
+            %following code runs:
+            if app.hit<3
+                %a random integer from 1 to 8 is selected to index the
+                %velocity range of the enemy and a random integer from 1 to
+                %11 is selected to index the theta values of the enemy.
+                v_rand_enemy = randi(8);
+                theta_rand_enemy = randi(11);
+                
+                %the collision_enemy function is called with the velocity
+                %from the enemy's velocity range (defined in properties)
+                %corresponding to the index value determined by
+                %v_rand_enemy above. The same is done for the enemy's theta
+                %range. The function also takes in the position of the ally
+                %tank, and the alpha data of the cactus obstacle on the
+                %Mesa map.
+                [app.xf, app.yf] = collision_enemy(app, app.v_range_enemy(v_rand_enemy),app.theta_range_enemy(theta_rand_enemy)*(pi/180),[5 15],app.a_cactus,app.x_cactus,app.y_cactus);
+                
+                %explosion visuals and sound
+                play(app.Tank_Hit_Sound)
+                pause(0.3)
+                boom(app,app.xf,app.yf)
+                
+                %similar to the enemy hit conditions for the firing of the
+                %ally tank above, however it analyzes the hit conditions
+                %for the enemy tankk instead. If the enemy projectile hits
+                %the position of your tank, the app.hit_enemy value is
+                %increased by 1. app.hit_sound_enemy is initialized as 0 in
+                %properties.
+                
+                %if the enemy hits you for the first time, the damage sound
+                % is played, your full health bar is deleted to show your
+                %two-thirds healthbar and app.hit_sound_enemy is updated to
+                %prevent sound repetition
+                if app.hit_enemy==1 && app.hit_sound_enemy==0
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.no_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound_enemy=1;
+                    %damge sound and health update if the enemy hits you for
+                    %the second time
+                elseif app.hit_enemy==2 && app.hit_sound_enemy==1
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.one_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound_enemy=2;
+                    %damage sound and health update if the enemy hits you for
+                    %the third time. This causes your health to go to zero, so
+                    %the the gray health bar is displayed, the lose screen is
+                    %made visible, and lose sound is played.
+                elseif app.hit_enemy==3 && app.hit_sound_enemy==2
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.two_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.Image_2.Visible="on";
+                    play(app.Lose_Sound)
+                end
+                
+                %pick a new random integer that will be used to index a
+                %wind value from the array of possible wind values after a
+                %round of you firing and enemy firing
+                app.c_rand = randi(50);
+                
+                %display new wind value on wind gauge
+                app.WINDGauge.Value = -1*((app.c_range(app.c_rand))/0.003)*10;
+                
+                %ensure hold remains on for figure UIAxes
+                hold(app.UIAxes,"on")
+            end
+        end
+        
+        % Button pushed function: MesaButton
+        function MesaButtonPushed(app, event)
+            %code that runs on the button push of the Mesa map button on
+            %the title menu. This loads in all of the images needed to play
+            %on the Mesa map. Images are loaded in this order so that the
+            %background remains in the back while tanks, health bars, etc.
+            %are plotted over the background
+            
+            %assigns app.I (first initialized in properties) as the image
+            %read in of the Mesa background for the map
+            app.I=imresize(flipud(imread('Mesa.PNG')), [150,150]);
+            
+            %initializes initial position of ally tank and enemy tank,
+            %velocity range of enemy, and theta range of enemy (as these
+            %are map dependendent values)
+            app.x0=8;
+            app.y0=1;
+            app.x0_enemy=142;
+            app.y0_enemy=1;
+            app.v_range_enemy=85:1:92;
+            app.theta_range_enemy=72:1:82;
+            
+            %displays the Mesa image on the figure UIAxes and turns the
+            %visibility of all title menu components off. Turns the
+            %visibility of the fire button for the Mesa map on.
+            image(app.UIAxes, app.I)
+            app.Image2.Visible="off";
+            app.MesaButton.Visible="off";
+            app.IcebergButton.Visible="off";
+            app.ParthenonButton.Visible="off";
+            app.FIREButton.Visible="on";
+            
+            %loads in rgb and alpha data of cactus image to plot on the
+            %figure as the obstacle to shoot over. Alpha data is required
+            %to plot the partially transparent image as well as to be used
+            %in the interactions with the collision functions
+            [app.cactus,~,app.a_cactus]=imread('cactus.png');
+            app.cactus = flipud(app.cactus);
+            app.a_cactus = flipud(app.a_cactus);
+            a_cactus_columns = length(app.a_cactus(1,:));
+            a_cactus_rows = length(app.a_cactus(:,1));
+            app.x_cactus= [40 40+a_cactus_columns];
+            app.y_cactus= [0 a_cactus_rows];
+            image(app.UIAxes,app.cactus,"AlphaData",app.a_cactus,"XData",app.x_cactus,"YData",app.y_cactus);
+            
+            %load in image data for ally tank and plot it on figure UIAxes
+            [app.allytank,~,app.a_allytank]=imread('Tank Green.png');
+            app.allytank = flipud(app.allytank);
+            app.a_allytank = flipud(app.a_allytank);
+            a_allytank_columns = length(app.a_allytank(1,:));
+            a_allytank_rows = length(app.a_allytank(:,1));
+            app.x_allytank= [5 5+a_allytank_columns];
+            app.y_allytank= [0 a_allytank_rows];
+            image(app.UIAxes,app.allytank,"AlphaData",app.a_allytank,"XData",app.x_allytank,"YData",app.y_allytank);
+            
+            %load in image data for enemy tank and plot it on figure UIAxes
+            [app.enemytank,~,app.a_enemytank]=imread('Tank Red.png');
+            app.enemytank = rot90(app.enemytank,2);
+            app.a_enemytank = rot90(app.a_enemytank,2);
+            a_enemytank_columns = length(app.a_enemytank(1,:));
+            a_enemytank_rows = length(app.a_enemytank(:,1));
+            app.x_enemytank= [129 129+a_enemytank_columns];
+            app.y_enemytank= [0 a_enemytank_rows];
+            image(app.UIAxes,app.enemytank,"AlphaData",app.a_enemytank,"XData",app.x_enemytank,"YData",app.y_enemytank);
+            
+            %load in image data for empty ally health bar and plot it on figure UIAxes
+            [app.deadhealth_ally,~,app.a_deadhealth_ally]=imread('Health Dead.png');
+            app.deadhealth_ally = flipud(app.deadhealth_ally);
+            app.a_deadhealth_ally = flipud(app.a_deadhealth_ally);
+            a_deadhealth_ally_columns = length(app.a_deadhealth_ally(1,:));
+            a_deadhealth_ally_rows = length(app.a_deadhealth_ally(:,1));
+            app.x_deadhealth_ally= [1 1+a_deadhealth_ally_columns];
+            app.y_deadhealth_ally= [120 120+a_deadhealth_ally_rows];
+            image(app.UIAxes,app.deadhealth_ally,"AlphaData",app.a_deadhealth_ally,"XData",app.x_deadhealth_ally,"YData",app.y_deadhealth_ally);
+            
+            %load in image data for 1/3 ally health bar and plot it on figure UIAxes
+            [app.oneallyhealth,~,app.a_oneallyhealth]=imread('Health Ally 1-3.png');
+            app.oneallyhealth = flipud(app.oneallyhealth);
+            app.a_oneallyhealth = flipud(app.a_oneallyhealth);
+            a_oneallyhealth_columns = length(app.a_oneallyhealth(1,:));
+            a_oneallyhealth_rows = length(app.a_oneallyhealth(:,1));
+            app.x_oneallyhealth= [1 1+a_oneallyhealth_columns];
+            app.y_oneallyhealth= [120 120+a_oneallyhealth_rows];
+            app.two_hit_ally = image(app.UIAxes,app.oneallyhealth,"AlphaData",app.a_oneallyhealth,"XData",app.x_oneallyhealth,"YData",app.y_oneallyhealth);
+            
+            %load in image data for 2/3 ally health bar and plot it on figure UIAxes
+            [app.twoallyhealth,~,app.a_twoallyhealth]=imread('Health Ally 2-3.png');
+            app.twoallyhealth = flipud(app.twoallyhealth);
+            app.a_twoallyhealth = flipud(app.a_twoallyhealth);
+            a_twoallyhealth_columns = length(app.a_twoallyhealth(1,:));
+            a_twoallyhealth_rows = length(app.a_twoallyhealth(:,1));
+            app.x_twoallyhealth= [1 1+a_twoallyhealth_columns];
+            app.y_twoallyhealth= [120 120+a_twoallyhealth_rows];
+            app.one_hit_ally = image(app.UIAxes,app.twoallyhealth,"AlphaData",app.a_twoallyhealth,"XData",app.x_twoallyhealth,"YData",app.y_twoallyhealth);
+            
+            %load in image data for full ally health bar and plot it on figure UIAxes
+            [app.fullallyhealth,~,app.a_fullallyhealth] = imread('Health Ally Full.png');
+            app.fullallyhealth = flipud(app.fullallyhealth);
+            app.a_fullallyhealth = flip(app.a_fullallyhealth);
+            a_fullallyhealth_columns = length(app.a_fullallyhealth(1,:));
+            a_fullallyhealth_rows = length(app.a_fullallyhealth(:,1));
+            app.x_fullallyhealth = [1 1+a_fullallyhealth_columns];
+            app.y_fullallyhealth = [120 120+a_fullallyhealth_rows];
+            app.no_hit_ally = image(app.UIAxes,app.fullallyhealth,"AlphaData",app.a_fullallyhealth,"XData",app.x_fullallyhealth,"YData",app.y_fullallyhealth);
+            
+            %load in image data for empty enemy health bar and plot it on figure UIAxes
+            [app.deadhealth_enemy,~,app.a_deadhealth_enemy]=imread('Health Dead.png');
+            app.deadhealth_enemy = rot90(app.deadhealth_enemy,2);
+            app.a_deadhealth_enemy = rot90(app.a_deadhealth_enemy,2);
+            a_deadhealth_enemy_columns = length(app.a_deadhealth_enemy(1,:));
+            a_deadhealth_enemy_rows = length(app.a_deadhealth_enemy(:,1));
+            app.x_deadhealth_enemy= [99 99+a_deadhealth_enemy_columns];
+            app.y_deadhealth_enemy= [120 120+a_deadhealth_enemy_rows];
+            image(app.UIAxes,app.deadhealth_enemy,"AlphaData",app.a_deadhealth_enemy,"XData",app.x_deadhealth_enemy,"YData",app.y_deadhealth_enemy);
+            
+            %load in image data for 1/3 enemy health bar and plot it on figure UIAxes
+            [app.oneenemyhealth,~,app.a_oneenemyhealth]=imread('Health Enemy 1-3.png');
+            app.oneenemyhealth = rot90(app.oneenemyhealth,2);
+            app.a_oneenemyhealth = rot90(app.a_oneenemyhealth,2);
+            a_oneenemyhealth_columns = length(app.a_oneenemyhealth(1,:));
+            a_oneenemyhealth_rows = length(app.a_oneenemyhealth(:,1));
+            app.x_oneenemyhealth= [99 99+a_oneenemyhealth_columns];
+            app.y_oneenemyhealth= [120 120+a_oneenemyhealth_rows];
+            app.two_hit_enemy = image(app.UIAxes,app.oneenemyhealth,"AlphaData",app.a_oneenemyhealth,"XData",app.x_oneenemyhealth,"YData",app.y_oneenemyhealth);
+            
+            %load in image data for 2/3 enemy health bar and plot it on figure UIAxes
+            [app.twoenemyhealth,~,app.a_twoenemyhealth]=imread('Health Enemy 2-3.png');
+            app.twoenemyhealth = rot90(app.twoenemyhealth,2);
+            app.a_twoenemyhealth = rot90(app.a_twoenemyhealth,2);
+            a_twoenemyhealth_columns = length(app.a_twoenemyhealth(1,:));
+            a_twoenemyhealth_rows = length(app.a_twoenemyhealth(:,1));
+            app.x_twoenemyhealth= [99 99+a_twoenemyhealth_columns];
+            app.y_twoenemyhealth= [120 120+a_twoenemyhealth_rows];
+            app.one_hit_enemy = image(app.UIAxes,app.twoenemyhealth,"AlphaData",app.a_twoenemyhealth,"XData",app.x_twoenemyhealth,"YData",app.y_twoenemyhealth);
+            
+            %load in image data for full enemy health bar and plot it on figure UIAxes
+            [app.fullenemyhealth,~,app.a_fullenemyhealth]=imread('Health Enemy Full.png');
+            app.fullenemyhealth = rot90(app.fullenemyhealth,2);
+            app.a_fullenemyhealth = rot90(app.a_fullenemyhealth,2);
+            a_fullenemyhealth_columns = length(app.a_fullenemyhealth(1,:));
+            a_fullenemyhealth_rows = length(app.a_fullenemyhealth(:,1));
+            app.x_fullenemyhealth= [99 99+a_fullenemyhealth_columns];
+            app.y_fullenemyhealth= [120 120+a_fullenemyhealth_rows];
+            app.no_hit_enemy = image(app.UIAxes,app.fullenemyhealth,"AlphaData",app.a_fullenemyhealth,"XData",app.x_fullenemyhealth,"YData",app.y_fullenemyhealth);
+        end
+        
+        % Button pushed function: IcebergButton
+        function IcebergButtonPushed(app, event)
+            %code to run on press of the Iceberg map button in the title
+            %menu. This is very similar to the button press for the Mesa map,
+            %however different initial positions and velocity ranges are
+            %assigned for the tanks, a different map background (Iceberg)
+            %is loaded in, and a different obstacle (Titanic) to shoot over
+            %is used. Because of this, this section will not be commented
+            %past this, as the comments are essentially the same. See Mesa
+            %button press function for comments.
+            
+            %Some images that are loaded in for the Mesa map are also
+            %loaded in here. We tried to plot these images elsewhere to
+            %avoid repetition of loading in the same image. However, to
+            %keep the order of the images proper (tanks, health bars, obstacle, etc in
+            %front of background), these images were required to plotted
+            %inside each map button function in the proper order despite
+            %the repetition.
+            
+            app.I=imresize(flipud(imread('Iceberg.PNG')), [150,150]);
+            app.x0=9;
+            app.y0=4;
+            app.x0_enemy=139;
+            app.y0_enemy=4;
+            app.v_range_enemy=91:1:98;
+            app.theta_range_enemy=72:1:82;
+            
+            image(app.UIAxes, app.I)
+            app.Image2.Visible="off";
+            app.MesaButton.Visible="off";
+            app.IcebergButton.Visible="off";
+            app.ParthenonButton.Visible="off";
+            app.FIREButton_2.Visible="on";
+            
+            [app.titanic,~,app.a_titanic]=imread('titanic.png');
+            app.titanic = flipud(app.titanic);
+            app.a_titanic = flipud(app.a_titanic);
+            a_titanic_columns = length(app.a_titanic(1,:));
+            a_titanic_rows = length(app.a_titanic(:,1));
+            app.x_titanic= [35 35+a_titanic_columns];
+            app.y_titanic= [0 a_titanic_rows];
+            image(app.UIAxes,app.titanic,"AlphaData",app.a_titanic,"XData",app.x_titanic,"YData",app.y_titanic);
+            
+            [app.allytank,~,app.a_allytank]=imread('Boat Green.png');
+            app.allytank = flipud(app.allytank);
+            app.a_allytank = flipud(app.a_allytank);
+            a_allytank_columns = length(app.a_allytank(1,:));
+            a_allytank_rows = length(app.a_allytank(:,1));
+            app.x_allytank= [5 5+a_allytank_columns];
+            app.y_allytank= [0 a_allytank_rows];
+            image(app.UIAxes,app.allytank,"AlphaData",app.a_allytank,"XData",app.x_allytank,"YData",app.y_allytank);
+            
+            [app.enemytank,~,app.a_enemytank]=imread('Boat Red.png');
+            app.enemytank = rot90(app.enemytank,2);
+            app.a_enemytank = rot90(app.a_enemytank,2);
+            a_enemytank_columns = length(app.a_enemytank(1,:));
+            a_enemytank_rows = length(app.a_enemytank(:,1));
+            app.x_enemytank= [129 129+a_enemytank_columns];
+            app.y_enemytank= [0 a_enemytank_rows];
+            image(app.UIAxes,app.enemytank,"AlphaData",app.a_enemytank,"XData",app.x_enemytank,"YData",app.y_enemytank);
+            
+            [app.deadhealth_ally,~,app.a_deadhealth_ally]=imread('Health Dead.png');
+            app.deadhealth_ally = flipud(app.deadhealth_ally);
+            app.a_deadhealth_ally = flipud(app.a_deadhealth_ally);
+            a_deadhealth_ally_columns = length(app.a_deadhealth_ally(1,:));
+            a_deadhealth_ally_rows = length(app.a_deadhealth_ally(:,1));
+            app.x_deadhealth_ally= [1 1+a_deadhealth_ally_columns];
+            app.y_deadhealth_ally= [120 120+a_deadhealth_ally_rows];
+            image(app.UIAxes,app.deadhealth_ally,"AlphaData",app.a_deadhealth_ally,"XData",app.x_deadhealth_ally,"YData",app.y_deadhealth_ally);
+            
+            [app.oneallyhealth,~,app.a_oneallyhealth]=imread('Health Ally 1-3.png');
+            app.oneallyhealth = flipud(app.oneallyhealth);
+            app.a_oneallyhealth = flipud(app.a_oneallyhealth);
+            a_oneallyhealth_columns = length(app.a_oneallyhealth(1,:));
+            a_oneallyhealth_rows = length(app.a_oneallyhealth(:,1));
+            app.x_oneallyhealth= [1 1+a_oneallyhealth_columns];
+            app.y_oneallyhealth= [120 120+a_oneallyhealth_rows];
+            app.two_hit_ally = image(app.UIAxes,app.oneallyhealth,"AlphaData",app.a_oneallyhealth,"XData",app.x_oneallyhealth,"YData",app.y_oneallyhealth);
+            
+            [app.twoallyhealth,~,app.a_twoallyhealth]=imread('Health Ally 2-3.png');
+            app.twoallyhealth = flipud(app.twoallyhealth);
+            app.a_twoallyhealth = flipud(app.a_twoallyhealth);
+            a_twoallyhealth_columns = length(app.a_twoallyhealth(1,:));
+            a_twoallyhealth_rows = length(app.a_twoallyhealth(:,1));
+            app.x_twoallyhealth= [1 1+a_twoallyhealth_columns];
+            app.y_twoallyhealth= [120 120+a_twoallyhealth_rows];
+            app.one_hit_ally = image(app.UIAxes,app.twoallyhealth,"AlphaData",app.a_twoallyhealth,"XData",app.x_twoallyhealth,"YData",app.y_twoallyhealth);
+            
+            
+            [app.fullallyhealth,~,app.a_fullallyhealth] = imread('Health Ally Full.png');
+            app.fullallyhealth = flipud(app.fullallyhealth);
+            app.a_fullallyhealth = flip(app.a_fullallyhealth);
+            a_fullallyhealth_columns = length(app.a_fullallyhealth(1,:));
+            a_fullallyhealth_rows = length(app.a_fullallyhealth(:,1));
+            app.x_fullallyhealth = [1 1+a_fullallyhealth_columns];
+            app.y_fullallyhealth = [120 120+a_fullallyhealth_rows];
+            app.no_hit_ally = image(app.UIAxes,app.fullallyhealth,"AlphaData",app.a_fullallyhealth,"XData",app.x_fullallyhealth,"YData",app.y_fullallyhealth);
+            
+            [app.deadhealth_enemy,~,app.a_deadhealth_enemy]=imread('Health Dead.png');
+            app.deadhealth_enemy = rot90(app.deadhealth_enemy,2);
+            app.a_deadhealth_enemy = rot90(app.a_deadhealth_enemy,2);
+            a_deadhealth_enemy_columns = length(app.a_deadhealth_enemy(1,:));
+            a_deadhealth_enemy_rows = length(app.a_deadhealth_enemy(:,1));
+            app.x_deadhealth_enemy= [99 99+a_deadhealth_enemy_columns];
+            app.y_deadhealth_enemy= [120 120+a_deadhealth_enemy_rows];
+            image(app.UIAxes,app.deadhealth_enemy,"AlphaData",app.a_deadhealth_enemy,"XData",app.x_deadhealth_enemy,"YData",app.y_deadhealth_enemy);
+            
+            [app.oneenemyhealth,~,app.a_oneenemyhealth]=imread('Health Enemy 1-3.png');
+            app.oneenemyhealth = rot90(app.oneenemyhealth,2);
+            app.a_oneenemyhealth = rot90(app.a_oneenemyhealth,2);
+            a_oneenemyhealth_columns = length(app.a_oneenemyhealth(1,:));
+            a_oneenemyhealth_rows = length(app.a_oneenemyhealth(:,1));
+            app.x_oneenemyhealth= [99 99+a_oneenemyhealth_columns];
+            app.y_oneenemyhealth= [120 120+a_oneenemyhealth_rows];
+            app.two_hit_enemy = image(app.UIAxes,app.oneenemyhealth,"AlphaData",app.a_oneenemyhealth,"XData",app.x_oneenemyhealth,"YData",app.y_oneenemyhealth);
+            
+            [app.twoenemyhealth,~,app.a_twoenemyhealth]=imread('Health Enemy 2-3.png');
+            app.twoenemyhealth = rot90(app.twoenemyhealth,2);
+            app.a_twoenemyhealth = rot90(app.a_twoenemyhealth,2);
+            a_twoenemyhealth_columns = length(app.a_twoenemyhealth(1,:));
+            a_twoenemyhealth_rows = length(app.a_twoenemyhealth(:,1));
+            app.x_twoenemyhealth= [99 99+a_twoenemyhealth_columns];
+            app.y_twoenemyhealth= [120 120+a_twoenemyhealth_rows];
+            app.one_hit_enemy = image(app.UIAxes,app.twoenemyhealth,"AlphaData",app.a_twoenemyhealth,"XData",app.x_twoenemyhealth,"YData",app.y_twoenemyhealth);
+            
+            [app.fullenemyhealth,~,app.a_fullenemyhealth]=imread('Health Enemy Full.png');
+            app.fullenemyhealth = rot90(app.fullenemyhealth,2);
+            app.a_fullenemyhealth = rot90(app.a_fullenemyhealth,2);
+            a_fullenemyhealth_columns = length(app.a_fullenemyhealth(1,:));
+            a_fullenemyhealth_rows = length(app.a_fullenemyhealth(:,1));
+            app.x_fullenemyhealth= [99 99+a_fullenemyhealth_columns];
+            app.y_fullenemyhealth= [120 120+a_fullenemyhealth_rows];
+            app.no_hit_enemy = image(app.UIAxes,app.fullenemyhealth,"AlphaData",app.a_fullenemyhealth,"XData",app.x_fullenemyhealth,"YData",app.y_fullenemyhealth);
+        end
+        
+        % Button pushed function: ParthenonButton
+        function ParthenonButtonPushed(app, event)
+            %code to run on the press of the Parthenon map button in the
+            %title menu. See the Mesa map button and Iceberg map button
+            %functions for further comments (these sections are very
+            %similar and do not require repetitive commenting)
+            
+            app.I=imresize(flipud(imread('Parthenon.PNG')), [150,150]);
+            app.x0=8;
+            app.y0=1;
+            app.x0_enemy=142;
+            app.y0_enemy=1;
+            app.v_range_enemy=85:1:92;
+            app.theta_range_enemy=72:1:82;
+            
+            image(app.UIAxes, app.I)
+            app.Image2.Visible="off";
+            app.MesaButton.Visible="off";
+            app.IcebergButton.Visible="off";
+            app.ParthenonButton.Visible="off";
+            app.FIREButton_3.Visible="on";
+            
+            [app.trojan,~,app.a_trojan]=imread('Trojan_Horse.png');
+            app.trojan = flipud(app.trojan);
+            app.a_trojan = flipud(app.a_trojan);
+            a_trojan_columns = length(app.a_trojan(1,:));
+            a_trojan_rows = length(app.a_trojan(:,1));
+            app.x_trojan= [35 35+a_trojan_columns];
+            app.y_trojan= [0 a_trojan_rows];
+            image(app.UIAxes,app.trojan,"AlphaData",app.a_trojan,"XData",app.x_trojan,"YData",app.y_trojan);
+            
+            [app.allytank,~,app.a_allytank]=imread('Tank Green.png');
+            app.allytank = flipud(app.allytank);
+            app.a_allytank = flipud(app.a_allytank);
+            a_allytank_columns = length(app.a_allytank(1,:));
+            a_allytank_rows = length(app.a_allytank(:,1));
+            app.x_allytank= [5 5+a_allytank_columns];
+            app.y_allytank= [0 a_allytank_rows];
+            image(app.UIAxes,app.allytank,"AlphaData",app.a_allytank,"XData",app.x_allytank,"YData",app.y_allytank);
+            
+            [app.enemytank,~,app.a_enemytank]=imread('Tank Red.png');
+            app.enemytank = rot90(app.enemytank,2);
+            app.a_enemytank = rot90(app.a_enemytank,2);
+            a_enemytank_columns = length(app.a_enemytank(1,:));
+            a_enemytank_rows = length(app.a_enemytank(:,1));
+            app.x_enemytank= [129 129+a_enemytank_columns];
+            app.y_enemytank= [0 a_enemytank_rows];
+            image(app.UIAxes,app.enemytank,"AlphaData",app.a_enemytank,"XData",app.x_enemytank,"YData",app.y_enemytank);
+            
+            [app.deadhealth_ally,~,app.a_deadhealth_ally]=imread('Health Dead.png');
+            app.deadhealth_ally = flipud(app.deadhealth_ally);
+            app.a_deadhealth_ally = flipud(app.a_deadhealth_ally);
+            a_deadhealth_ally_columns = length(app.a_deadhealth_ally(1,:));
+            a_deadhealth_ally_rows = length(app.a_deadhealth_ally(:,1));
+            app.x_deadhealth_ally= [1 1+a_deadhealth_ally_columns];
+            app.y_deadhealth_ally= [120 120+a_deadhealth_ally_rows];
+            image(app.UIAxes,app.deadhealth_ally,"AlphaData",app.a_deadhealth_ally,"XData",app.x_deadhealth_ally,"YData",app.y_deadhealth_ally);
+            
+            [app.oneallyhealth,~,app.a_oneallyhealth]=imread('Health Ally 1-3.png');
+            app.oneallyhealth = flipud(app.oneallyhealth);
+            app.a_oneallyhealth = flipud(app.a_oneallyhealth);
+            a_oneallyhealth_columns = length(app.a_oneallyhealth(1,:));
+            a_oneallyhealth_rows = length(app.a_oneallyhealth(:,1));
+            app.x_oneallyhealth= [1 1+a_oneallyhealth_columns];
+            app.y_oneallyhealth= [120 120+a_oneallyhealth_rows];
+            app.two_hit_ally = image(app.UIAxes,app.oneallyhealth,"AlphaData",app.a_oneallyhealth,"XData",app.x_oneallyhealth,"YData",app.y_oneallyhealth);
+            
+            [app.twoallyhealth,~,app.a_twoallyhealth]=imread('Health Ally 2-3.png');
+            app.twoallyhealth = flipud(app.twoallyhealth);
+            app.a_twoallyhealth = flipud(app.a_twoallyhealth);
+            a_twoallyhealth_columns = length(app.a_twoallyhealth(1,:));
+            a_twoallyhealth_rows = length(app.a_twoallyhealth(:,1));
+            app.x_twoallyhealth= [1 1+a_twoallyhealth_columns];
+            app.y_twoallyhealth= [120 120+a_twoallyhealth_rows];
+            app.one_hit_ally = image(app.UIAxes,app.twoallyhealth,"AlphaData",app.a_twoallyhealth,"XData",app.x_twoallyhealth,"YData",app.y_twoallyhealth);
+            
+            
+            [app.fullallyhealth,~,app.a_fullallyhealth] = imread('Health Ally Full.png');
+            app.fullallyhealth = flipud(app.fullallyhealth);
+            app.a_fullallyhealth = flip(app.a_fullallyhealth);
+            a_fullallyhealth_columns = length(app.a_fullallyhealth(1,:));
+            a_fullallyhealth_rows = length(app.a_fullallyhealth(:,1));
+            app.x_fullallyhealth = [1 1+a_fullallyhealth_columns];
+            app.y_fullallyhealth = [120 120+a_fullallyhealth_rows];
+            app.no_hit_ally = image(app.UIAxes,app.fullallyhealth,"AlphaData",app.a_fullallyhealth,"XData",app.x_fullallyhealth,"YData",app.y_fullallyhealth);
+            
+            [app.deadhealth_enemy,~,app.a_deadhealth_enemy]=imread('Health Dead.png');
+            app.deadhealth_enemy = rot90(app.deadhealth_enemy,2);
+            app.a_deadhealth_enemy = rot90(app.a_deadhealth_enemy,2);
+            a_deadhealth_enemy_columns = length(app.a_deadhealth_enemy(1,:));
+            a_deadhealth_enemy_rows = length(app.a_deadhealth_enemy(:,1));
+            app.x_deadhealth_enemy= [99 99+a_deadhealth_enemy_columns];
+            app.y_deadhealth_enemy= [120 120+a_deadhealth_enemy_rows];
+            image(app.UIAxes,app.deadhealth_enemy,"AlphaData",app.a_deadhealth_enemy,"XData",app.x_deadhealth_enemy,"YData",app.y_deadhealth_enemy);
+            
+            [app.oneenemyhealth,~,app.a_oneenemyhealth]=imread('Health Enemy 1-3.png');
+            app.oneenemyhealth = rot90(app.oneenemyhealth,2);
+            app.a_oneenemyhealth = rot90(app.a_oneenemyhealth,2);
+            a_oneenemyhealth_columns = length(app.a_oneenemyhealth(1,:));
+            a_oneenemyhealth_rows = length(app.a_oneenemyhealth(:,1));
+            app.x_oneenemyhealth= [99 99+a_oneenemyhealth_columns];
+            app.y_oneenemyhealth= [120 120+a_oneenemyhealth_rows];
+            app.two_hit_enemy = image(app.UIAxes,app.oneenemyhealth,"AlphaData",app.a_oneenemyhealth,"XData",app.x_oneenemyhealth,"YData",app.y_oneenemyhealth);
+            
+            [app.twoenemyhealth,~,app.a_twoenemyhealth]=imread('Health Enemy 2-3.png');
+            app.twoenemyhealth = rot90(app.twoenemyhealth,2);
+            app.a_twoenemyhealth = rot90(app.a_twoenemyhealth,2);
+            a_twoenemyhealth_columns = length(app.a_twoenemyhealth(1,:));
+            a_twoenemyhealth_rows = length(app.a_twoenemyhealth(:,1));
+            app.x_twoenemyhealth= [99 99+a_twoenemyhealth_columns];
+            app.y_twoenemyhealth= [120 120+a_twoenemyhealth_rows];
+            app.one_hit_enemy = image(app.UIAxes,app.twoenemyhealth,"AlphaData",app.a_twoenemyhealth,"XData",app.x_twoenemyhealth,"YData",app.y_twoenemyhealth);
+            
+            [app.fullenemyhealth,~,app.a_fullenemyhealth]=imread('Health Enemy Full.png');
+            app.fullenemyhealth = rot90(app.fullenemyhealth,2);
+            app.a_fullenemyhealth = rot90(app.a_fullenemyhealth,2);
+            a_fullenemyhealth_columns = length(app.a_fullenemyhealth(1,:));
+            a_fullenemyhealth_rows = length(app.a_fullenemyhealth(:,1));
+            app.x_fullenemyhealth= [99 99+a_fullenemyhealth_columns];
+            app.y_fullenemyhealth= [120 120+a_fullenemyhealth_rows];
+            app.no_hit_enemy = image(app.UIAxes,app.fullenemyhealth,"AlphaData",app.a_fullenemyhealth,"XData",app.x_fullenemyhealth,"YData",app.y_fullenemyhealth);
+        end
+        
+        % Button pushed function: FIREButton_2
+        function FIREButton_2Pushed(app, event)
+            %code to run on the press of FIREButton_2, the fire button
+            %corresponding to the Iceberg map. This is the same as the fire
+            %button for the Mesa map, except different tank positions and
+            %obstacle data are used in the collision functions. See the
+            %button press function for FIREbutton for more information on
+            %the code below)
+            
+            if app.hit_enemy<3
+                [app.xf, app.yf] = collision(app,app.POWERSlider.Value,app.ANGLESlider.Value*(pi/180), [128.5 141],app.a_titanic,app.x_titanic,app.y_titanic);
+                play(app.Tank_Hit_Sound)
+                pause(0.3)
+                boom(app,app.xf,app.yf)
+                if app.hit==1 && app.hit_sound==0
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.no_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound=1;
+                elseif app.hit==2 && app.hit_sound==1
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.one_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound=2;
+                elseif app.hit==3 && app.hit_sound==2
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.two_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.Image.Visible="on";
+                    play(app.Win_Sound)
+                end
+            end
+            
+            
+            if app.hit<3
+                v_rand_enemy = randi(8);
+                theta_rand_enemy = randi(11);
+                [app.xf, app.yf] = collision_enemy(app, app.v_range_enemy(v_rand_enemy),app.theta_range_enemy(theta_rand_enemy)*(pi/180),[5 18.3],app.a_titanic,app.x_titanic,app.y_titanic);
+                play(app.Tank_Hit_Sound)
+                pause(0.3)
+                boom(app,app.xf,app.yf)
+                if app.hit_enemy==1 && app.hit_sound_enemy==0
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.no_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound_enemy=1;
+                elseif app.hit_enemy==2 && app.hit_sound_enemy==1
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.one_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound_enemy=2;
+                elseif app.hit_enemy==3 && app.hit_sound_enemy==2
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.two_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.Image_2.Visible="on";
+                    play(app.Lose_Sound)
+                end
+                
+                app.c_rand = randi(50);
+                app.WINDGauge.Value = -1*((app.c_range(app.c_rand))/0.003)*10;
+                hold(app.UIAxes,"on")
+            end
+        end
+        
+        % Button pushed function: FIREButton_3
+        function FIREButton_3Pushed(app, event)
+            %code to run on the press of FIREButton_3, the fire button
+            %corresponding to the Parthenon map. This is the same as the fire
+            %button for the Mesa map, except different tank positions and
+            %obstacle data are used in the collision functions. See the
+            %button press function for FIREbutton Mesa fire button for more information on
+            %the code below)
+            
+            if app.hit_enemy<3
+                [app.xf, app.yf] = collision(app,app.POWERSlider.Value,app.ANGLESlider.Value*(pi/180), [135.8 145.35],app.a_trojan,app.x_trojan,app.y_trojan);
+                play(app.Tank_Hit_Sound)
+                pause(0.3)
+                boom(app,app.xf,app.yf)
+                if app.hit==1 && app.hit_sound==0
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.no_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound=1;
+                elseif app.hit==2 && app.hit_sound==1
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.one_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound=2;
+                elseif app.hit==3 && app.hit_sound==2
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.two_hit_enemy)
+                    hold(app.UIAxes,"on")
+                    app.Image.Visible="on";
+                    play(app.Win_Sound)
+                end
+            end
+            
+            
+            if app.hit<3
+                v_rand_enemy = randi(8);
+                theta_rand_enemy = randi(11);
+                [app.xf, app.yf] = collision_enemy(app, app.v_range_enemy(v_rand_enemy),app.theta_range_enemy(theta_rand_enemy)*(pi/180),[5 15],app.a_trojan,app.x_trojan,app.y_trojan);
+                play(app.Tank_Hit_Sound)
+                pause(0.3)
+                boom(app,app.xf,app.yf)
+                if app.hit_enemy==1 && app.hit_sound_enemy==0
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.no_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound_enemy=1;
+                elseif app.hit_enemy==2 && app.hit_sound_enemy==1
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.one_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.hit_sound_enemy=2;
+                elseif app.hit_enemy==3 && app.hit_sound_enemy==2
+                    play(app.Damage_Sound)
+                    hold(app.UIAxes,"off")
+                    delete(app.two_hit_ally)
+                    hold(app.UIAxes,"on")
+                    app.Image_2.Visible="on";
+                    play(app.Lose_Sound)
+                end
+                
+                app.c_rand = randi(50);
+                app.WINDGauge.Value = -1*((app.c_range(app.c_rand))/0.003)*10;
+                hold(app.UIAxes,"on")
+            end
+        end
+    end
+    
+    % Component initialization
+    methods (Access = private)
+        
+        % Create UIFigure and components
+        function createComponents(app)
+            
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Color = [0.6588 0.6471 0.6471];
+            app.UIFigure.Position = [100 100 640 480];
+            app.UIFigure.Name = 'UI Figure';
+            
+            % Create WINDGaugeLabel
+            app.WINDGaugeLabel = uilabel(app.UIFigure);
+            app.WINDGaugeLabel.HorizontalAlignment = 'center';
+            app.WINDGaugeLabel.FontSize = 10;
+            app.WINDGaugeLabel.Position = [344 4 32 22];
+            app.WINDGaugeLabel.Text = 'WIND';
+            
+            % Create WINDGauge
+            app.WINDGauge = uigauge(app.UIFigure, 'semicircular');
+            app.WINDGauge.Limits = [-10 10];
+            app.WINDGauge.MajorTicks = [-10 -5 0 5 10];
+            app.WINDGauge.FontSize = 10;
+            app.WINDGauge.Position = [305 27 110 60];
+            
+            % Create FIREButton
+            app.FIREButton = uibutton(app.UIFigure, 'push');
+            app.FIREButton.ButtonPushedFcn = createCallbackFcn(app, @FIREButtonPushed, true);
+            app.FIREButton.BackgroundColor = [0.8392 0.1529 0.1529];
+            app.FIREButton.FontSize = 24;
+            app.FIREButton.FontColor = [1 1 1];
+            app.FIREButton.Visible = 'off';
+            app.FIREButton.Position = [468 25 131 49];
+            app.FIREButton.Text = 'FIRE!';
+            
+            % Create POWERSliderLabel
+            app.POWERSliderLabel = uilabel(app.UIFigure);
+            app.POWERSliderLabel.HorizontalAlignment = 'right';
+            app.POWERSliderLabel.Position = [31 67 51 22];
+            app.POWERSliderLabel.Text = 'POWER';
+            
+            % Create POWERSlider
+            app.POWERSlider = uislider(app.UIFigure);
+            app.POWERSlider.Limits = [1 100];
+            app.POWERSlider.MajorTicks = [1 50 100];
+            app.POWERSlider.MinorTicks = [25 75];
+            app.POWERSlider.Position = [101 76 150 3];
+            app.POWERSlider.Value = 1;
+            
+            % Create ANGLESliderLabel
+            app.ANGLESliderLabel = uilabel(app.UIFigure);
+            app.ANGLESliderLabel.HorizontalAlignment = 'right';
+            app.ANGLESliderLabel.Position = [36 25 46 22];
+            app.ANGLESliderLabel.Text = 'ANGLE';
+            
+            % Create ANGLESlider
+            app.ANGLESlider = uislider(app.UIFigure);
+            app.ANGLESlider.Limits = [0 90];
+            app.ANGLESlider.Position = [103 34 148 3];
+            
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            title(app.UIAxes, '')
+            xlabel(app.UIAxes, '')
+            ylabel(app.UIAxes, '')
+            app.UIAxes.XLim = [0 150];
+            app.UIAxes.YLim = [0 150];
+            app.UIAxes.XTick = 0;
+            app.UIAxes.XTickLabel = {'0'};
+            app.UIAxes.YTick = 0;
+            app.UIAxes.YTickLabel = {'0'};
+            app.UIAxes.Position = [19 98 604 374];
+            
+            % Create Image
+            app.Image = uiimage(app.UIFigure);
+            app.Image.Visible = 'off';
+            app.Image.Position = [205 180 232 232];
+            app.Image.ImageSource = 'You Win.jpg';
+            
+            % Create Image_2
+            app.Image_2 = uiimage(app.UIFigure);
+            app.Image_2.Visible = 'off';
+            app.Image_2.Position = [205 180 232 232];
+            app.Image_2.ImageSource = 'You Lose.jpg';
+            
+            % Create Image2
+            app.Image2 = uiimage(app.UIFigure);
+            app.Image2.Position = [-75 -115 792 639];
+            app.Image2.ImageSource = 'Title.jpg';
+            
+            % Create MesaButton
+            app.MesaButton = uibutton(app.UIFigure, 'push');
+            app.MesaButton.ButtonPushedFcn = createCallbackFcn(app, @MesaButtonPushed, true);
+            app.MesaButton.Position = [19 130 121 28];
+            app.MesaButton.Text = 'Mesa';
+            
+            % Create IcebergButton
+            app.IcebergButton = uibutton(app.UIFigure, 'push');
+            app.IcebergButton.ButtonPushedFcn = createCallbackFcn(app, @IcebergButtonPushed, true);
+            app.IcebergButton.Position = [261 130 121 28];
+            app.IcebergButton.Text = 'Iceberg';
+            
+            % Create ParthenonButton
+            app.ParthenonButton = uibutton(app.UIFigure, 'push');
+            app.ParthenonButton.ButtonPushedFcn = createCallbackFcn(app, @ParthenonButtonPushed, true);
+            app.ParthenonButton.Position = [478 130 121 28];
+            app.ParthenonButton.Text = 'Parthenon';
+            
+            % Create FIREButton_2
+            app.FIREButton_2 = uibutton(app.UIFigure, 'push');
+            app.FIREButton_2.ButtonPushedFcn = createCallbackFcn(app, @FIREButton_2Pushed, true);
+            app.FIREButton_2.BackgroundColor = [0.8392 0.1529 0.1529];
+            app.FIREButton_2.FontSize = 24;
+            app.FIREButton_2.FontColor = [1 1 1];
+            app.FIREButton_2.Visible = 'off';
+            app.FIREButton_2.Position = [468 25 131 49];
+            app.FIREButton_2.Text = 'FIRE!';
+            
+            % Create FIREButton_3
+            app.FIREButton_3 = uibutton(app.UIFigure, 'push');
+            app.FIREButton_3.ButtonPushedFcn = createCallbackFcn(app, @FIREButton_3Pushed, true);
+            app.FIREButton_3.BackgroundColor = [0.8392 0.1529 0.1529];
+            app.FIREButton_3.FontSize = 24;
+            app.FIREButton_3.FontColor = [1 1 1];
+            app.FIREButton_3.Visible = 'off';
+            app.FIREButton_3.Position = [468 25 131 49];
+            app.FIREButton_3.Text = 'FIRE!';
+            
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+    
+    % App creation and deletion
+    methods (Access = public)
+        
+        % Construct app
+        function app = start
+            
+            % Create UIFigure and components
+            createComponents(app)
+            
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+            
+            % Execute the startup function
+            runStartupFcn(app, @startupFcn)
+            
+            if nargout == 0
+                clear app
+            end
+        end
+        
+        % Code that executes before app deletion
+        function delete(app)
+            
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end
